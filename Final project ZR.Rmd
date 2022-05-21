@@ -1,0 +1,252 @@
+---
+title: "Final Project Combined"
+author: "Zev Rosen"
+date: "12/12/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load in libraries}
+library(tidyverse)
+library(stringr)
+library(lubridate)
+library(knitr)
+library(kableExtra)
+library(DT)
+library(cowplot)
+library(gridExtra)
+library(countrycode)
+```
+## Load in Datasets
+```{r load in datasets}
+players = read_csv("players.csv")
+rankings = read_csv("rankings.csv")
+matches = read_csv("matches.csv")
+matches$tourney_name = str_replace(matches$tourney_name,"Us Open","US Open")
+```
+## Grand Slam Leaders Barplot
+This graph shows a barplot of the players with the most grand slam titles. Serena and Venus Williams have the most over this time period.
+```{r, grand slam winners}
+slam_matches <- filter(matches, tourney_level =="G")
+slam_matches <- filter(slam_matches, round =="F")
+summary_slam_matches <- summarize(group_by(slam_matches, winner_name), count=n())
+summary_slam_matches <- rename(summary_slam_matches, number_of_grand_slams = count)
+summary_slam_matches_2 <- subset(summary_slam_matches, (number_of_grand_slams >=3))
+#barplot of most grand slams
+grandslam_barplot <- ggplot(summary_slam_matches_2)+geom_bar(aes(x=winner_name, y=number_of_grand_slams, fill=winner_name),stat="identity")+
+  labs(x="Player",y="Number of Grand Slams",
+       title="Grand Slam Tournaments Won")+theme_classic()
+grandslam_barplot + scale_fill_brewer(name= "Winner Name", palette = "Greens")
+```
+
+```{r extract player rankings }
+players_rankings = inner_join(players,rankings)
+players_rankings$year = str_sub(players_rankings$ranking_date,1,4)
+players_rankings$month = str_sub(players_rankings$ranking_date,5,6)
+```
+## Venus Williams Ranking Graph
+
+This is a graph showing Venus Williams' rankings from her time coming on tour until 2017. We see Williams get to the top 10 in the rankings in the late 1990's. Aside from a downturn in 2012 and 2013, she has stayed near the top of the rankings since.
+```{r Venus Rankings over Time }
+venus_rankings <- filter(players_rankings, first_name=="Venus", last_name =="Williams")
+venus_rankings <- mutate(venus_rankings, YearMonth=make_date(year = year, month = month))
+#graph
+venus <- ggplot(venus_rankings,aes(x=YearMonth,y=ranking, group=1))+geom_point(size=2, color="forestgreen")+labs(x="Date",y="Ranking",title="History of Rankings for Venus Williams")+theme_classic()
+venus 
+```
+
+## Representation by Country in Australian Open
+
+These barplots depict the numbers of players who have represented their country from 2000-2017. The original graph, recreated on the right, displays the total number of players by country. The graph on the left displays the total number of players by country in the Australian Open. We compared the two to see whether demographics change depending on the tournament: for example, if Australian players are more represented in the Australian Open than in general.
+
+```{r Representation by Country in Australian Open}
+matches_australia <- filter(matches, tourney_name == "Australian Open")
+matches_australia_winner <- select(matches_australia, winner_name, winner_ioc)
+matches_australia_winner <- rename(matches_australia_winner, name=winner_name, ioc=winner_ioc) 
+matches_australia_loser <- select(matches_australia, loser_name, loser_ioc)
+matches_australia_loser <- rename(matches_australia_loser, name=loser_name, ioc=loser_ioc)
+matches_country <- unique(rbind(matches_australia_winner, matches_australia_loser))
+matches_country <- group_by(matches_country, ioc)
+matches_country <- summarise(matches_country, Count=n())
+matches_country <- arrange(matches_country, desc(Count))
+matches_country <- ungroup(matches_country)
+matches_country <- mutate(matches_country, ioc=reorder(ioc, Count))
+matches_country <- head(matches_country, 20)
+ 
+ australia <- ggplot(matches_country, aes(x = ioc,y = Count)) +
+ geom_bar(stat='identity',colour="white", fill = "limegreen") +
+ geom_text(aes(x = ioc, y = 1, label = paste0("(",Count,")",sep="")),
+ hjust=0, vjust=.5, size = 3, colour = 'black',
+ fontface = 'bold') +
+ labs(x = 'Country', 
+ y = 'Women Players on Tour', 
+ title = 'Women Player Representation in \n Australian Open by Country') +
+ coord_flip() +
+ theme_bw()
+
+matches_country_winner <- select(matches, winner_name, winner_ioc)
+matches_country_winner <- rename(matches_country_winner, name=winner_name, ioc=winner_ioc) 
+matches_country_loser <- select(matches, loser_name, loser_ioc)
+matches_country_loser <- rename(matches_country_loser, name=loser_name, ioc=loser_ioc)
+matches_country <- unique(rbind(matches_country_winner, matches_country_loser))
+matches_country <- group_by(matches_country, ioc)
+matches_country <- summarise(matches_country, Count=n())
+matches_country <- arrange(matches_country, desc(Count))
+matches_country <- ungroup(matches_country)
+matches_country <- mutate(matches_country, ioc=reorder(ioc, Count))
+matches_country <- head(matches_country, 20)
+ 
+ total <- ggplot(matches_country, aes(x = ioc,y = Count)) +
+ geom_bar(stat='identity',colour="white", fill = "limegreen") +
+ geom_text(aes(x = ioc, y = 1, label = paste0("(",Count,")",sep="")),
+ hjust=0, vjust=.5, size = 4, colour = 'black',
+ fontface = 'bold') +
+ labs(x = 'Country', 
+ y = 'Count', 
+ title = 'Total Women Tennis Player \n Representation by Country') +
+ coord_flip() +
+ theme_bw()
+ 
+grid.arrange(australia,total, nrow=1)
+```
+
+## Distribution of Age Graph for Wimbledon
+
+This barplot compares the age distributions of Wimbledon winners to losers. The graph indicates that there is greater variety in winners’ ages than in losers’ ages. Losers also tend to be younger, potentially indicating that more experienced players fare better.
+
+```{r Recreate Distribution of Age Graph for Wimbledon}
+wimbledon_matches <- filter(matches, tourney_name == "Wimbledon")
+wimbledon_finals <- filter(wimbledon_matches, round == "F")
+wimbledon_winners <- mutate(wimbledon_finals, agediff = loser_age - winner_age)
+
+summary(wimbledon_winners$winner_age)
+winners <- ggplot(wimbledon_winners, aes(x = winner_age)) +
+ geom_histogram(binwidth = 1,fill = "limegreen") +
+ labs(x= 'Winner Age',y = 'Count', title = paste("Distribution of", 'Wimbledon Winner Age ')) +
+ theme_bw()
+winners
+
+wimbledon_losers <- mutate(wimbledon_finals, agediff = winner_age - loser_age)
+
+summary(wimbledon_losers$loser_age)
+losers <- ggplot(wimbledon_losers, aes(x = loser_age)) +
+ geom_histogram(binwidth = 1,fill = "limegreen") +
+ labs(x= 'Loser Age',y = 'Count', title = paste("Distribution of", 'Wimbledon Loser Age ')) +
+ theme_bw()
+
+grid.arrange(winners+ylim(0,4),losers,nrow=1)
+```
+
+## Upsets
+
+Here, we are finding how many upsets occured in grand slams and see that Wimbledon, due to unique seeding and surface, has the most upsets as a whole.
+```{r upsetdata}
+tournamentwinners <- mutate(matches, agediff = winner_age - loser_age,
+                               rankingdiff = loser_rank - winner_rank)
+ausopen = filter(tournamentwinners, tourney_name=="Australian Open")
+french = filter(tournamentwinners, tourney_name=="French Open")
+wimbledon = filter(tournamentwinners, tourney_name=="Wimbledon")  
+usopen = filter(tournamentwinners, tourney_name=="US Open")
+grandslam= rbind(ausopen,french,wimbledon,usopen)
+grandslamupsets = filter(grandslam, rankingdiff <= -10)
+
+grandslamupsetsfinals = filter(grandslam, round == "F", rankingdiff <= -10)
+
+```
+
+## Grand Slam Upsets Graph
+
+We classify a game as an "upset" if the winner rank is greater than or equal to the loser rank by 10 slots. We plot the ranking difference between winners and losers for the grand slams in Finals and Semi-Finals.
+
+```{r Finals}
+g1 <- ggplot(grandslamupsetsfinals)+
+  geom_bar(aes(x=tourney_name,fill=tourney_name,
+               y = (..count..)))+
+  scale_fill_brewer(palette="Greens",direction=1,
+                    name="")+
+  labs(x="",y="",
+       title="Number of Upsets in \n Grand Slam Finals")+theme_classic()+theme(legend.position="none")+ylim(0,6)
+
+grandslamupsetsSF = filter(grandslam, round == "SF", rankingdiff <= -10)
+
+g2 <- ggplot(grandslamupsetsSF)+
+  geom_bar(aes(x=tourney_name,fill=tourney_name,
+               y = (..count..)))+
+  scale_fill_brewer(palette="Greens",direction=1,
+                    name="")+
+  labs(x="",y="",
+       title="Number of Upsets in \n Grand Slam SF's")+theme_classic()+theme(legend.position="none")
+
+grid.arrange(g1, g2, nrow=1)
+```
+
+## Grand Slam Big Upsets Graph
+
+We are now calling upsets in Grand Slam tournaments of 50+ spots "huge upsets," and tracking them through every round.
+
+```{r grand slam big upsets}
+grandslambigupsets <- filter(grandslam, rankingdiff <= -50)
+grandslambigupsets <- mutate(grandslambigupsets, round = fct_relevel(round, "F", "SF", "QF", "R16","R32","R64","R128"))
+
+ggplot(grandslambigupsets)+
+  geom_bar(aes(x=tourney_name,fill=round,
+               y = (..count..)))+
+  scale_fill_brewer(palette="Greens",direction=-1,
+                    name="")+
+  labs(x="",y="",
+       title="Huge Upsets in Grand Slam Tournaments")+theme_classic()
+```
+
+
+##  Chloropleth of Female Tennis Players by Country
+This a chloropleth which displays female grand slam players by country over the last 17 years. A darker shade means more players from each country have been represented.
+
+```{r chloropleth}
+
+##CHLOROPLETH OF GRAND SLAM PLAYERS BY COUNTRY
+#set match winners and losers variable
+slam_matches <- filter (matches, tourney_level == "G")
+winner_countries<- select(slam_matches, winner_name, winner_ioc)
+winner_countries<-rename(winner_countries, name = winner_name, ioc = winner_ioc)
+
+loser_countries<- select(slam_matches, loser_name, loser_ioc)
+loser_countries <- rename(loser_countries, name = loser_name, ioc = loser_ioc)
+
+#combine winners and loser
+winners_losers<- unique(rbind(winner_countries,loser_countries))
+winners_losers <- summarise(group_by(winners_losers,ioc), count = n())
+
+#load in map data and merge with player data
+all_countries<-map_data("world")
+names(all_countries)[5] <- "ioc"
+#change country names in map data to abbreviation
+all_countries[5] <- countrycode(all_countries[,5], 'country.name','iso3c')
+#merge matches and map data
+matches_country_map <- full_join(winners_losers, all_countries, by = "ioc")
+matches_country_map
+
+players_chloropleth <- ggplot(matches_country_map) + geom_polygon(aes_string(x="long", y = "lat", group = "group", fill = "count"), color = "grey90") + coord_map(xlim=c(-180,180))+
+  labs(x = "", y = "", title = "Grand Slam Players by Country") + theme_classic() + theme(axis.ticks.y = element_blank(), axis.text.y = element_blank(), axis.ticks.x = element_blank(), axis.text.x = element_blank()) + scale_fill_gradient(name="Count",low = "green1", high = "green4",na.value="grey90")
+players_chloropleth
+
+```
+
+## Age of Winners in Respective Grand Slams
+
+This graph shows female grand slam winner age over time for the last 17 years. Each grand slam is represented by a different color line. Age tends to trend upwards over time for each grand slam though there are a high amount of fluctuations. 
+```{r lineplot}
+##LINEPLOT OF TOURNAMENT WINNER AGE OVER TIME
+
+#get grand slam winners data for each slam
+slam_matches <- filter(matches, tourney_level == "G")
+slam_finals <- filter(slam_matches, round == "F")
+slam_finals <- mutate(slam_finals, tourney_name = fct_recode(tourney_name,
+                                                         "French Open" = "Roland Garros"))
+g <- ggplot(slam_finals) + geom_line(size=.75,aes_string(x="year", y= "winner_age", group = "tourney_name", color = "tourney_name")) + theme_minimal() + labs(x= "Year", y = "Winner Age", title = "Grand Slam Winner Age over Time") + scale_color_manual(name="Tournament Name", values = c("green4","turquoise","limegreen","lawngreen"))
+g
+```
+
+
