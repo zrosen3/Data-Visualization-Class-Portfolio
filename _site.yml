@@ -1,0 +1,23 @@
+name: "Zev Rosen"
+navbar:
+  title: "Final Data Vis Portfolio"
+  left:
+    - text: "Home"
+      icon: fa-home
+      href: index.html
+    - text: "Guided Exercise 01"
+      href: Guided-Exercise01.html
+    - text: "Guided Exercise 02 "
+      href: Guided-Exercise02.html
+    - text: "Guided Exercise 03"
+      href: Guided-Exercise03.html
+    - text: "Guided Execise 04"
+      href: Guided-Exercise04.html
+    - text: "Final Project"
+      href: Final-project.html
+output:
+  html_document:
+    theme: lumen
+    highlight: tango
+    
+      

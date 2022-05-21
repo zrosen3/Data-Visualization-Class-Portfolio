@@ -1,0 +1,5 @@
+---
+title: "Zev Rosen Final Portfolio"
+---
+
+My name is Zev Rosen and I am a junior at Georgetown University majoring in mathematics and economics. I created this website for my final project in Professor Meyer's Data Visualization and Graphics class. The website contains four guided exercises and a final project analyzing women's tennis grand slam match data. 

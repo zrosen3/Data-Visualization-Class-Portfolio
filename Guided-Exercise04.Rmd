@@ -1,0 +1,47 @@
+---
+title: "Guided Exercise 04"
+author: "Zev Rosen"
+date: "12/16/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r dataload}
+library(tidyverse) #loading tidyverse library
+monthly_temps <- read_csv("monthly_global_land_and_ocean_temperature_anomalies.csv") #stores data from file in monthly_temps variable
+monthly_temps <- mutate(monthly_temps, month_number = row_number()) #sets month number for row number for purpose of x axis labeling
+library(lubridate) #loads in lubridate libary for dealing with dates
+monthly_temps <- mutate(monthly_temps, date = ymd(YearMonth, truncated = 1)) #generates date variable in year month date format
+monthly_temps <- mutate(monthly_temps, 
+                        year = year(date),
+                        month = month(date, label = TRUE)
+                        ) #extract year and month and store as separate variables  
+monthly_temps <- rename(monthly_temps, temperature_anomaly = Value) #rename Value variable to temperature anomaly
+monthly_temps <- select(monthly_temps, -YearMonth) #drop the YearMonth variable
+```
+```{r graph1}
+#plot of historical temperature anomalies
+ggplot(monthly_temps, aes(x=month, y=temperature_anomaly, color = temperature_anomaly))+
+  geom_line(aes(group = year))+
+  labs(y = "Temperature Anomaly in Degrees Celsisus",
+       title = "Historical Temperature Anomalies \n Since 1880 by Month")+
+  scale_x_discrete(name = "", breaks = levels(monthly_temps$month)[seq(2,12,2)])+
+ scale_color_gradientn(colors=rev(rainbow(2)), guide = F) + theme_minimal()
+```
+
+```{r graph2}
+
+#spiralized version
+monthly_temps <- mutate(monthly_temps, month_number = as.numeric(monthly_temps$month))
+ggplot(monthly_temps, aes(x=month_number, y=temperature_anomaly, color=temperature_anomaly))+
+  geom_line(aes(group=year))+coord_polar()+
+  labs(x="",y="",title="Historical Temperature Anomalies")+theme_minimal()+
+  scale_x_continuous(name="", breaks=seq(2,12,2), labels=levels(monthly_temps$month)[seq(2,12,2)])+
+  scale_color_gradientn(colors=rev(rainbow(2)),guide=F)+theme(axis.text.y = element_blank())
+
+#save file to R object
+save(monthly_temps, file="climate_data.RData")
+```
+
